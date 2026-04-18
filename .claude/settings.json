@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"ask\", \"permissionDecisionReason\": \"git commit にはユーザーの明示的な許可が必要です\"}}'",
+            "if": "Bash(git commit *)",
+            "statusMessage": "コミット前の確認..."
+          }
+        ]
+      }
+    ]
+  }
+}

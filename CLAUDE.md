@@ -14,6 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `docs/tasks.md` に記載されているタスクを実行する
 - 完了したタスクは直ちにチェックを入れる（`- [ ]` → `- [x]`）
 - 会話の中で発生した新しいタスクも随時 `docs/tasks.md` に追記する
+- コミットはユーザーの明示的な許可を得てから行う（`.claude/settings.json` のhookでも強制）
 - コミット前に、変更したすべてのドキュメント・コードを徹底的にレビューし、抜け漏れ・矛盾・不整合がないことを自分で確認してからコミットする。ユーザーにレビューを指示される前に自分でやること
 
 ## Serena MCP Integration
