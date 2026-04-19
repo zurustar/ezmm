@@ -7,7 +7,7 @@
 
 ## 現在の状態
 
-**フェーズ**: 設計完了・実装未着手
+**フェーズ**: Step 1（`project` モジュール）完了 → Step 2（`renderer`）着手待ち
 
 ### 開発方針: TDD
 
@@ -27,48 +27,51 @@ TS:   types/store → preview → components  （Rust と並行可）
 
 ---
 
-## Step 1: `project` モジュール（Rust）
+## Step 1: `project` モジュール（Rust）✅
 
 > 依存なし。最初に着手可能。  
 > 参照: [01_project_schema.md](design/01_project_schema.md), [02_validation.md](design/02_validation.md)
 
-#### サイクル 1-1: 最小 YAML パース
-- `[ ]` 🔴 テスト: `version:1, output_folder, output, scenes:[], entries:[]` の最小 YAML が `Project` にデシリアライズされる
-- `[ ]` 🟢 実装: `Project` / `OutputSettings` struct 定義、`serde_yml` デシリアライズ
+#### サイクル 1-1: 最小 YAML パース ✅
+- `[x]` 🔴 テスト: `version:1, output_folder, output, scenes:[], entries:[]` の最小 YAML が `Project` にデシリアライズされる
+- `[x]` 🟢 実装: `Project` / `OutputSettings` struct 定義、`serde_yml` デシリアライズ
 
-#### サイクル 1-2: SceneObject 型パース
-- `[ ]` 🔴 テスト: video / image / text / audio 各オブジェクトの YAML が正しい enum バリアントにパースされる
-- `[ ]` 🟢 実装: `Scene` / `SceneObject` enum と各バリアント（`VideoObject` / `ImageObject` / `TextObject` / `AudioObject`）
+#### サイクル 1-2: SceneObject 型パース ✅
+- `[x]` 🔴 テスト: video / image / text / audio 各オブジェクトの YAML が正しい enum バリアントにパースされる
+- `[x]` 🟢 実装: `Scene` / `SceneObject` enum と各バリアント（`VideoObject` / `ImageObject` / `TextObject` / `AudioObject`）
 
-#### サイクル 1-3: Entry・VariableValue パース
-- `[ ]` 🔴 テスト: `variables` の `file`（＋ trim）/ `text` 両形式が `VariableValue` の正しいバリアントにパースされる
-- `[ ]` 🟢 実装: `Entry` / `VariableValue` （`#[serde(untagged)]` enum）/ `IndexMap`
+#### サイクル 1-3: Entry・VariableValue パース ✅
+- `[x]` 🔴 テスト: `variables` の `file`（＋ trim）/ `text` 両形式が `VariableValue` の正しいバリアントにパースされる
+- `[x]` 🟢 実装: `Entry` / `VariableValue` （`#[serde(untagged)]` enum）/ `IndexMap`
 
-#### サイクル 1-4: シリアライズ round-trip
-- `[ ]` 🔴 テスト: `Project` をシリアライズしてデシリアライズすると元と一致する（insta スナップショット）
-- `[ ]` 🟢 実装: `skip_serializing_if` / `default` アトリビュートの調整
+#### サイクル 1-4: シリアライズ round-trip ✅
+- `[x]` 🔴 テスト: `Project` をシリアライズしてデシリアライズすると元と一致する（insta スナップショット）
+- `[x]` 🟢 実装: `skip_serializing_if` / `default` アトリビュートの調整
 
-#### サイクル 1-5: スキーマバージョンチェック
-- `[ ]` 🔴 テスト: `version: 2` → `unsupported_version:` エラー / `version` 欠落 → エラー / `version: 1` → `Ok`
-- `[ ]` 🟢 実装: `migration.rs` バージョン判定ロジック
+#### サイクル 1-5: スキーマバージョンチェック ✅
+- `[x]` 🔴 テスト: `version: 2` → `unsupported_version:` エラー / `version` 欠落 → エラー / `version: 1` → `Ok`
+- `[x]` 🟢 実装: `migration.rs` バージョン判定ロジック
 
-#### サイクル 1-6: バリデーション（プロジェクト・出力設定レベル）
-- `[ ]` 🔴 テスト: `output_folder` 空 → `output_folder_invalid` エラー / `h264 + webm` → `codec_format_mismatch` エラー / `crf: 99` → `crf_out_of_range` エラー / 有効な設定 → エラーなし
-- `[ ]` 🟢 実装: `validation.rs` プロジェクトレベル検証
+#### サイクル 1-6: バリデーション（プロジェクト・出力設定レベル）✅
+- `[x]` 🔴 テスト: `output_folder` 空 → `output_folder_invalid` エラー / `h264 + webm` → `codec_format_mismatch` エラー / `crf: 52` → `crf_out_of_range` エラー / 有効な設定 → エラーなし
+- `[x]` 🟢 実装: `validation.rs` プロジェクトレベル検証
 
-#### サイクル 1-7: バリデーション（シーン・オブジェクトレベル）
-- `[ ]` 🔴 テスト: オブジェクト ID 重複 → `object_id_duplicate` / `variable:false` で `file` 未指定 → `object_field_missing` / ホワイトリスト外フォント → `font_not_whitelisted` / `opacity: 200` → `object_value_out_of_range`
-- `[ ]` 🟢 実装: シーン・オブジェクトレベル検証
+#### サイクル 1-7: バリデーション（シーン・オブジェクトレベル）✅
+- `[x]` 🔴 テスト: オブジェクト ID 重複 → `object_id_duplicate` / `variable:false` で `file` 未指定 → `object_field_missing` / ホワイトリスト外フォント → `font_not_whitelisted`
+- `[x]` 🟢 実装: シーン・オブジェクトレベル検証
 
-#### サイクル 1-8: バリデーション（エントリレベル）
-- `[ ]` 🔴 テスト: `variable:true` オブジェクトに対応する変数なし → `variable_missing` / `trim_start + trim_end >= duration` → `trim_out_of_range` / エントリ名に `/` → `entry_name_invalid` / エントリ名重複 → `entry_name_duplicate`
-- `[ ]` 🟢 実装: エントリレベル検証
+#### サイクル 1-8: バリデーション（エントリレベル）✅
+- `[x]` 🔴 テスト: `variable:true` オブジェクトに対応する変数なし → `variable_missing` / エントリ名に `/` → `entry_name_invalid` / エントリ名重複 → `entry_name_duplicate`
+- `[x]` 🟢 実装: エントリレベル検証
 
-#### サイクル 1-9: バリデーション（警告）
-- `[ ]` 🔴 テスト: オブジェクトがキャンバス外 → `object_out_of_bounds` warning / `variables` に存在しない ID → `unknown_variable_key` warning
-- `[ ]` 🟢 実装: warning 系チェック
+#### サイクル 1-9: バリデーション（警告）✅
+- `[x]` 🔴 テスト: オブジェクトがキャンバス外 → `object_out_of_bounds` warning
+- `[x]` 🟢 実装: warning 系チェック
+
 
 ---
+
+
 
 ## Step 2: `renderer` モジュール（Rust）
 
