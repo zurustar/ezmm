@@ -1,182 +1,112 @@
-# 設計ドキュメント
+# 設計ドキュメント インデックス
 
-## 技術スタック
-
-| 役割 | 技術 |
-|------|------|
-| デスクトップアプリ基盤 | Tauri 2.x（Rustバックエンド＋システムWebView） |
-| フロントエンド（GUI） | React + TypeScript |
-| リアルタイムプレビュー | Canvas API（WebView内でフレーム合成） |
-| 動画レンダリング | FFmpeg（Rustのサブプロセスとして呼び出し） |
-| プロジェクトファイル形式 | YAML |
-| 配布形式 | シングルバイナリ（Tauriビルド） |
-
-### 選定理由
-
-- **Tauri**: 社内配布PCが低スペックのため、メモリ使用量を最小化する必要がある。ElectronのようにChromiumを同梱せずシステムのWebViewを使うため軽量。シングルバイナリ配布も容易。
-- **React + TypeScript**: WebViewベースのUIをコンポーネント指向で開発できる。Canvas APIとの親和性が高く、リアルタイムプレビューの実装がしやすい。
-- **FFmpeg**: 動画エンコード・デコードのデファクトスタンダード。対応フォーマットが広く、コーデック変換・フィルタ処理が高品質。Rustのサブプロセスとして呼び出す。
-- **Canvas API**: フロントエンドがWebViewベースのため、追加ライブラリなしにリアルタイムフレーム合成が実現できる。FFmpegによる事前レンダリング不要でプレビューが可能。
-- **YAML**: 人間が読み書きしやすく、プロジェクトファイルをテキストエディタで確認・共有しやすい。コメント記述も可能。
-- **FFmpeg同梱**: ユーザーの追加インストール不要でシングルバイナリ配布を実現。FFmpegはGPLのためソフトウェア全体もGPLライセンスとする。ソースコードはGitHubで公開済みのため要件を満たす。
+社内向け動画バッチ編集ツール **ezmm** の設計書インデックス。
+各トピックの詳細は以下のファイルを参照。
 
 ---
 
-## プロジェクトファイルのYAMLスキーマ
+## アーキテクチャ概要
 
-プロジェクトファイルの完全なサンプルを以下に示す。すべての設定項目を含む。
+### 技術スタック
 
-```yaml
-# 出力フォルダ
-output_folder: /path/to/output
+| 役割 | 技術 |
+|------|------|
+| デスクトップアプリ基盤 | Tauri 2.x（Rust バックエンド＋システム WebView） |
+| フロントエンド（GUI） | React + TypeScript |
+| リアルタイムプレビュー | Canvas API（WebView 内でフレーム合成） |
+| 動画レンダリング | FFmpeg（Rust のサブプロセスとして呼び出し） |
+| プロジェクトファイル形式 | YAML |
+| 配布形式 | シングルバイナリ（Tauri ビルド） |
 
-# 出力設定
-output:
-  width: 1920
-  height: 1080
-  fps: 30
-  codec: h264       # h264 / h265 / vp9 など
-  format: mp4       # mp4 / mov / webm など
+### モジュール依存グラフ
 
-# シーン定義（記述順に再生）
-scenes:
-  - id: intro
-    objects:
-      - id: intro_video
-        type: video
-        file: /path/to/intro.mp4
-        x: 0
-        y: 0
-        width: 1920
-        height: 1080
-        start: 0.0
-        opacity: 100
-        volume: 100
+依存は**一方向のみ**。下位モジュールから先に実装・テストできる。
 
-  - id: main
-    objects:
-      # 記述順がZ順（後が前面）
-      - id: main_video
-        type: video
-        variable: true  # 可変：エントリごとにファイルを指定
-        x: 0
-        y: 0
-        width: 1920
-        height: 1080
-        start: 0.0
-        opacity: 100
-        volume: 80        # 映像の音声音量 0-100
+```
+【Rust バックエンド】
 
-      - id: bgm
-        type: audio
-        file: /path/to/bgm.mp3
-        start: 0.0
-        duration: 0.0     # 0 = シーン終端まで
-        volume: 30
-        fade_in: 1.0
-        fade_out: 2.0
-        loop: true        # 音声が短い場合: true=ループ / false=無音
+  project（データモデル・YAML スキーマ・バリデーション）
+      ↓ 依存
+  renderer（FFmpeg コマンド生成）
+      ↓ 依存
+  batch（バッチ実行エンジン・進捗通知）
+      ↓ 依存
+  commands（Tauri IPC エントリポイント）
 
-      - id: logo
-        type: image
-        file: /path/to/logo.png
-        x: 1720
-        y: 40
-        width: 160
-        height: 80
-        start: 0.0
-        duration: 0.0
-        opacity: 80
+  ※ state / settings（AppState・AppSettings）は横断的関心事として全層から参照される
 
-      - id: photo
-        type: image
-        variable: true  # 可変：エントリごとにファイルを指定
-        x: 1600
-        y: 820
-        width: 200
-        height: 200
-        start: 3.0
-        duration: 10.0
-        opacity: 100
+【フロントエンド（React + TypeScript）】
 
-      - id: caption
-        type: text
-        variable: true  # 可変：エントリごとにテキストを指定
-        x: 100
-        y: 900
-        width: 800
-        height: 80
-        start: 3.0
-        duration: 10.0
-        opacity: 100
-        font: NotoSansCJK-Bold
-        color: "#ffffff"
-        background_color: "#00000088"  # 透明度付き背景
+  types（TypeScript 型定義）
+      ↓ 依存
+  store（Zustand 状態管理）
+      ↓ 依存
+  preview（Canvas プレビューエンジン）
+      ↓ 依存
+  components（UI コンポーネント）
 
-  - id: outro
-    objects:
-      - id: outro_video
-        type: video
-        file: /path/to/outro.mp4
-        x: 0
-        y: 0
-        width: 1920
-        height: 1080
-        start: 0.0
-        opacity: 100
-        volume: 100
-
-  # 映像オブジェクトがないシーン（固定秒数を指定）
-  - id: title_card
-    duration: 3.0
-    objects:
-      - id: title_text
-        type: text
-        text: "役員メッセージ"
-        x: 760
-        y: 490
-        width: 400
-        height: 100
-        start: 0.0
-        duration: 0.0
-        opacity: 100
-        font: NotoSansCJK-Bold
-        color: "#ffffff"
-
-# エントリリスト
-entries:
-  - name: tanaka          # 出力ファイル名（tanaka.mp4）
-    variables:
-      main_video:
-        file: /path/to/tanaka.mp4
-        trim_start: 3.0   # 冒頭3秒カット
-        trim_end: 2.0     # 末尾2秒カット
-      photo:
-        file: /path/to/tanaka_photo.jpg
-      caption:
-        text: "田中 太郎  代表取締役社長"
-
-  - name: suzuki
-    variables:
-      main_video:
-        file: /path/to/suzuki.mp4
-        trim_start: 5.0
-        trim_end: 0.0
-      photo:
-        file: /path/to/suzuki_photo.jpg
-      caption:
-        text: "鈴木 花子  取締役CFO"
+フロント ⇄ Rust は Tauri IPC のみで通信（境界明確）
 ```
 
-### スキーマ補足
+### 推奨実装順序
 
-| 項目 | 補足 |
+| ステップ | モジュール | 前提 |
+|--------|----------|------|
+| 1 | `project`（Rust） | なし |
+| 2 | `renderer`（Rust） | project |
+| 3 | `batch`（Rust） | renderer |
+| 4 | `commands`（Rust） | batch |
+| 5 | `types` + `store`（TS） | Rust と並行可 |
+| 6 | `preview`（TS） | store |
+| 7 | `components`（TS） | preview + store |
+
+---
+
+## ディレクトリ構造（概要）
+
+```
+ezmm/
+├── src-tauri/src/
+│   ├── project/    # スキーマ・バリデーション（最上流）
+│   ├── renderer/   # FFmpeg コマンド生成
+│   ├── batch/      # バッチ実行エンジン
+│   ├── commands/   # Tauri IPC
+│   ├── state.rs    # AppState
+│   └── settings.rs # AppSettings
+├── src/
+│   ├── types/      # TypeScript 型定義
+│   ├── store/      # Zustand ストア
+│   ├── preview/    # Canvas プレビューエンジン
+│   └── components/ # UI コンポーネント
+└── docs/
+    ├── requirements.md
+    ├── design.md       ← このファイル（インデックス）
+    └── design/         ← 詳細設計書（各トピック別）
+```
+
+---
+
+## 設計書ファイル一覧
+
+| ファイル | 内容 |
+|--------|------|
+| [01_project_schema.md](design/01_project_schema.md) | YAML スキーマ・Rust/TS データモデル・スキーマバージョン・マイグレーション |
+| [02_validation.md](design/02_validation.md) | バリデーション仕様・ValidationIssue コード一覧・エラーと警告の区別 |
+| [03_renderer.md](design/03_renderer.md) | FFmpeg レンダリングパイプライン・filter_complex 構築・音声ミキシング・エスケープ |
+| [04_batch.md](design/04_batch.md) | バッチ実行エンジン・進捗・キャンセル・ログ・スリープ抑制 |
+| [05_ipc.md](design/05_ipc.md) | Tauri IPC コマンド一覧・イベント定義・エラーコード体系 |
+| [06_state.md](design/06_state.md) | AppState・AppSettings・settings.json・ファイル I/O 信頼性 |
+| [07_preview.md](design/07_preview.md) | リアルタイムプレビュー（Canvas・Web Audio API・メモリ管理） |
+| [08_gui.md](design/08_gui.md) | GUI 設計・画面レイアウト・UX 詳細・キーボードショートカット |
+| [09_store.md](design/09_store.md) | Zustand 状態管理（ProjectStore・PreviewStore・BatchStore・SettingsStore） |
+| [10_infra.md](design/10_infra.md) | 技術スタック・開発環境・CI/CD・配布・テスト戦略・main.rs 骨格 |
+
+---
+
+## 変更履歴
+
+| 日付 | 内容 |
 |------|------|
-| `variable: true` | そのオブジェクトをエントリごとに差し替え可能にするフラグ。映像・画像・テキスト・音声すべてに使用可 |
-| `duration: 0.0` | 画像・テキスト・音声オブジェクトでシーン終端まで表示/再生を継続する。映像オブジェクトには `duration` は存在しない（再生長はファイルの長さで決まる） |
-| `trim_start` / `trim_end` | 可変映像オブジェクトのみ。エントリで指定。省略時は0 |
-| `volume` | 映像オブジェクト: 埋め込み音声の音量（0-100）。音声オブジェクト: 再生音量（0-100） |
-| `fade_in` / `fade_out` | 音声オブジェクトのみ。フェードの秒数 |
-| `loop` | 音声オブジェクトのみ。音声ファイルがdurationより短い場合の挙動。`true` でループ再生、`false` で残りは無音 |
-| `background_color` | アルファ値付きの16進数カラーコード（`#RRGGBBAA`）を使用可 |
-| シーンの `duration` | 明示的な時間を持つオブジェクト（映像、またはduration > 0の画像/テキスト/音声）が1つも存在しない場合のみ必要 |
+| 2026-04-15 | 初版作成 |
+| 2026-04-18 | 「テンプレート」「ジョブ」を廃止し「プロジェクト」に統合。全オブジェクト対等・可変モデル（映像・画像・テキスト・音声の4種別）。出力設定・オブジェクトID・Z順を追加。BGMを廃止し音声オブジェクトとして統合 |
+| 2026-04-19 | アーキテクチャ整理に伴い design.md を目次化し design/ サブディレクトリに分割 |
