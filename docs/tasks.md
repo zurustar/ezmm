@@ -1,6 +1,7 @@
 # ezmm 実装タスク
 
-設計書: [docs/design.md](design.md)（目次）→ [docs/design/](design/) 配下の各ファイル
+設計書: [design.md](design.md)（目次）→ [design/](design/) 配下の各ファイル  
+開発プロセス: [CONTRIBUTING.md](../CONTRIBUTING.md)（TDD方針・コードスタイル・コミット規則）
 
 ---
 
@@ -8,114 +9,274 @@
 
 **フェーズ**: 設計完了・実装未着手
 
-設計書は `docs/design/` に分割済み（2026-04-19）。
-次は設計書に沿って実装を開始する。
-
 ### 開発方針: TDD
 
 実装は TDD で進める。詳細は [CONTRIBUTING.md](../CONTRIBUTING.md) を参照。  
-**「1モジュール完了 = テストがすべて green」** を次のステップへ進む条件とする。
+**「1サイクル完了 = 🔴テストを書いて失敗確認 → 🟢テストが通る実装 → ♻️リファクタ」**
 
 ---
 
 ## 実装ステップ（依存順）
 
-依存方針: 上流から実装することでステップごとにテスト可能。
+各ステップは上流から順に進める。ステップ内のサイクルは上から順に進める。
 
-### Step 1: `project` モジュール（Rust）
-> 依存なし。最初に着手可能。
-
-- `[ ]` `src-tauri/src/project/mod.rs` — `Project` / `Scene` / `SceneObject` / `Entry` Rust 構造体
-- `[ ]` YAML デシリアライズ（`serde_yml`）・シリアライズ
-- `[ ]` `src-tauri/src/project/migration.rs` — バージョンチェック
-- `[ ]` `src-tauri/src/project/validation.rs` — `validate_project()` → `ValidationResult`
-- `[ ]` ユニットテスト（YAML パース・バリデーション・insta スナップショット）
-
-参照: [01_project_schema.md](design/01_project_schema.md), [02_validation.md](design/02_validation.md)
+```
+Rust: project → renderer → batch → commands
+TS:   types/store → preview → components  （Rust と並行可）
+```
 
 ---
 
-### Step 2: `renderer` モジュール（Rust）
-> 依存: project
+## Step 1: `project` モジュール（Rust）
 
-- `[ ]` `src-tauri/src/renderer/mod.rs` — `build_filter_complex()` 関数
-- `[ ]` 単一シーンの filter_complex 生成（映像・画像・テキスト・音声）
-- `[ ]` 複数シーンの concat 対応
-- `[ ]` drawtext エスケープ（`escape_drawtext_value()`）
-- `[ ]` ffprobe 呼び出し・`ProbeResult` パース
-- `[ ]` ユニットテスト（insta スナップショットで FFmpeg コマンドを検証）
+> 依存なし。最初に着手可能。  
+> 参照: [01_project_schema.md](design/01_project_schema.md), [02_validation.md](design/02_validation.md)
 
-参照: [03_renderer.md](design/03_renderer.md)
+#### サイクル 1-1: 最小 YAML パース
+- `[ ]` 🔴 テスト: `version:1, output_folder, output, scenes:[], entries:[]` の最小 YAML が `Project` にデシリアライズされる
+- `[ ]` 🟢 実装: `Project` / `OutputSettings` struct 定義、`serde_yml` デシリアライズ
 
----
+#### サイクル 1-2: SceneObject 型パース
+- `[ ]` 🔴 テスト: video / image / text / audio 各オブジェクトの YAML が正しい enum バリアントにパースされる
+- `[ ]` 🟢 実装: `Scene` / `SceneObject` enum と各バリアント（`VideoObject` / `ImageObject` / `TextObject` / `AudioObject`）
 
-### Step 3: `batch` モジュール（Rust）
-> 依存: renderer
+#### サイクル 1-3: Entry・VariableValue パース
+- `[ ]` 🔴 テスト: `variables` の `file`（＋ trim）/ `text` 両形式が `VariableValue` の正しいバリアントにパースされる
+- `[ ]` 🟢 実装: `Entry` / `VariableValue` （`#[serde(untagged)]` enum）/ `IndexMap`
 
-- `[ ]` `src-tauri/src/batch/mod.rs` — バッチ実行ループ
-- `[ ]` FFmpeg サブプロセス起動・進捗パース（`-progress pipe:1`）
-- `[ ]` キャンセル対応（`cancel_requested` フラグ + `ffmpeg_child.kill()`）
-- `[ ]` `SleepGuard`（RAII スリープ抑制）
-- `[ ]` バッチログ出力（`{output_folder}/ezmm-YYYYMMDD-HHMMSS.log`）
+#### サイクル 1-4: シリアライズ round-trip
+- `[ ]` 🔴 テスト: `Project` をシリアライズしてデシリアライズすると元と一致する（insta スナップショット）
+- `[ ]` 🟢 実装: `skip_serializing_if` / `default` アトリビュートの調整
 
-参照: [04_batch.md](design/04_batch.md)
+#### サイクル 1-5: スキーマバージョンチェック
+- `[ ]` 🔴 テスト: `version: 2` → `unsupported_version:` エラー / `version` 欠落 → エラー / `version: 1` → `Ok`
+- `[ ]` 🟢 実装: `migration.rs` バージョン判定ロジック
 
----
+#### サイクル 1-6: バリデーション（プロジェクト・出力設定レベル）
+- `[ ]` 🔴 テスト: `output_folder` 空 → `output_folder_invalid` エラー / `h264 + webm` → `codec_format_mismatch` エラー / `crf: 99` → `crf_out_of_range` エラー / 有効な設定 → エラーなし
+- `[ ]` 🟢 実装: `validation.rs` プロジェクトレベル検証
 
-### Step 4: `commands` + `state` / `settings`（Rust）
-> 依存: batch
+#### サイクル 1-7: バリデーション（シーン・オブジェクトレベル）
+- `[ ]` 🔴 テスト: オブジェクト ID 重複 → `object_id_duplicate` / `variable:false` で `file` 未指定 → `object_field_missing` / ホワイトリスト外フォント → `font_not_whitelisted` / `opacity: 200` → `object_value_out_of_range`
+- `[ ]` 🟢 実装: シーン・オブジェクトレベル検証
 
-- `[ ]` `src-tauri/src/state.rs` — `AppState` 構造体
-- `[ ]` `src-tauri/src/settings.rs` — `AppSettings` / `load` / `save` / `save_settings_sync`
-- `[ ]` `src-tauri/src/commands/` — IPC コマンド実装（全 11 コマンド）
-- `[ ]` `src-tauri/src/main.rs` — Tauri builder / 権限設定 / `on_window_event`
-- `[ ]` `src-tauri/capabilities/default.json` — Capability 定義
+#### サイクル 1-8: バリデーション（エントリレベル）
+- `[ ]` 🔴 テスト: `variable:true` オブジェクトに対応する変数なし → `variable_missing` / `trim_start + trim_end >= duration` → `trim_out_of_range` / エントリ名に `/` → `entry_name_invalid` / エントリ名重複 → `entry_name_duplicate`
+- `[ ]` 🟢 実装: エントリレベル検証
 
-参照: [05_ipc.md](design/05_ipc.md), [06_state.md](design/06_state.md), [10_infra.md](design/10_infra.md)
-
----
-
-### Step 5: TypeScript 型定義 + Zustand ストア
-> 依存: なし（Rust と並行可能）
-
-- `[ ]` `src/types/` — `Project` / `ProbeResult` / `ValidationResult` / `AppSettings` 等
-- `[ ]` `src/store/projectStore.ts` — `ProjectStore`
-- `[ ]` `src/store/previewStore.ts` — `PreviewStore`
-- `[ ]` `src/store/batchStore.ts` — `BatchStore`（イベントリスナー登録含む）
-- `[ ]` `src/store/settingsStore.ts` — `SettingsStore`
-
-参照: [01_project_schema.md](design/01_project_schema.md), [09_store.md](design/09_store.md), [05_ipc.md](design/05_ipc.md)
+#### サイクル 1-9: バリデーション（警告）
+- `[ ]` 🔴 テスト: オブジェクトがキャンバス外 → `object_out_of_bounds` warning / `variables` に存在しない ID → `unknown_variable_key` warning
+- `[ ]` 🟢 実装: warning 系チェック
 
 ---
 
-### Step 6: Canvas プレビューエンジン（TypeScript）
-> 依存: store
+## Step 2: `renderer` モジュール（Rust）
 
-- `[ ]` `src/preview/` — `requestAnimationFrame` ループ
-- `[ ]` `<video>` 要素によるフレーム描画（`convertFileSrc` + `requestVideoFrameCallback`）
-- `[ ]` 音声再生（Web Audio API）
-- `[ ]` フォント読み込み（`get_font_paths` IPC → `@font-face` 注入）
-- `[ ]` シーク・エントリ切り替え
-- `[ ]` AudioContext autoplay ポリシー対応
+> 依存: Step 1（project）完了後  
+> 参照: [03_renderer.md](design/03_renderer.md)
 
-参照: [07_preview.md](design/07_preview.md)
+#### サイクル 2-1: ffprobe 出力パース
+- `[ ]` 🔴 テスト: ffprobe JSON 文字列 → `ProbeResult`（duration / width / height / fps / has_audio / sample_rate）が正しく取れる。`r_frame_rate` の分数文字列も正しく変換される
+- `[ ]` 🟢 実装: `parse_ffprobe_output()` 関数
+
+#### サイクル 2-2: エスケープ関数
+- `[ ]` 🔴 テスト: `escape_drawtext_value` — バックスラッシュ・シングルクォート・コロン・パーセントが正しくエスケープされる / `escape_filter_path` — カンマ・角括弧が正しくエスケープされる
+- `[ ]` 🟢 実装: `escape_drawtext_value()` / `escape_filter_path()` 関数
+
+#### サイクル 2-3: 単一映像オブジェクトのフィルタ生成
+- `[ ]` 🔴 テスト: 映像1オブジェクトのみのシーン → 期待する `-i` 引数と `filter_complex` 文字列（insta スナップショット）
+- `[ ]` 🟢 実装: 映像オブジェクトのフィルタ生成（scale / trim / setpts / opacity）
+
+#### サイクル 2-4: 画像・テキスト・音声フィルタ生成
+- `[ ]` 🔴 テスト: 画像オブジェクト → `-loop 1 -t` + overlay / テキスト → `drawtext=` フィルタ / 音声 → `adelay` + `atrim` + `aloop`（各 insta スナップショット）
+- `[ ]` 🟢 実装: 画像 / テキスト / 音声フィルタ生成
+
+#### サイクル 2-5: オブジェクト合成（overlay チェーン・amix）
+- `[ ]` 🔴 テスト: 映像 + 画像 + テキスト + 音声を含むシーン → overlay チェーンと amix が正しく組まれる（insta スナップショット）
+- `[ ]` 🟢 実装: overlay チェーン構築 / amix（N=0/1/2+ の3ケース分岐）
+
+#### サイクル 2-6: 音声ゼロシーンの anullsrc 対応
+- `[ ]` 🔴 テスト: 映像のみ（音声オブジェクトなし・映像の has_audio:false）のシーン → `anullsrc` が生成される
+- `[ ]` 🟢 実装: 有効音声入力数 N=0 時の `anullsrc` 生成
+
+#### サイクル 2-7: 複数シーンの concat
+- `[ ]` 🔴 テスト: 2シーン構成 → 正しい `concat` フィルタ（シーン数 ≤15）が生成される（insta スナップショット）
+- `[ ]` 🟢 実装: 複数シーンの `concat` フィルタ生成
+
+#### サイクル 2-8: コーデック別 FFmpeg 最終引数
+- `[ ]` 🔴 テスト: `h264` → `libx264` + AAC 44100 / `h265` → `libx265 -tag:v hvc1` / `vp9` → `libvpx-vp9 -b:v 0` + Opus 48000（各 insta スナップショット）
+- `[ ]` 🟢 実装: コーデック → FFmpeg 引数マッピング
+
+#### サイクル 2-9: 同一ファイル重複排除
+- `[ ]` 🔴 テスト: 同一ファイルパスを参照する2オブジェクト → `-i` は1回 + `split` フィルタで分岐される
+- `[ ]` 🟢 実装: 入力ファイル重複排除（`dunce::canonicalize` キー）
 
 ---
 
-### Step 7: UI コンポーネント（React）
-> 依存: store + preview
+## Step 3: `batch` モジュール（Rust）
 
-- `[ ]` ツールバー（新規・開く・保存・出力先・バッチ実行）
-- `[ ]` プレビューパネル（Canvas + シークバー + 再生コントロール）
-- `[ ]` プロパティパネル（オブジェクト属性編集・可変値編集）
-- `[ ]` タイムライン（シーン・オブジェクト一覧）
-- `[ ]` エントリ一覧（チェックボックス・ドラッグ並び替え）
-- `[ ]` バッチ進捗ダイアログ
-- `[ ]` キーボードショートカット
-- `[ ]` 起動時モーダル（Recent Files）
-- `[ ]` About ダイアログ
+> 依存: Step 2（renderer）完了後  
+> 参照: [04_batch.md](design/04_batch.md)
 
-参照: [08_gui.md](design/08_gui.md)
+#### サイクル 3-1: 出力ファイルパス生成
+- `[ ]` 🔴 テスト: `output_folder="/out"` + entry name `"tanaka"` + format `"mp4"` → `"/out/tanaka.mp4"`
+- `[ ]` 🟢 実装: 出力ファイルパス構築ロジック
+
+#### サイクル 3-2: 出力ファイル衝突チェック
+- `[ ]` 🔴 テスト: `output_folder` に `tanaka.mp4` が存在する場合 → `check_output_conflicts` が `["tanaka.mp4"]` を返す / 存在しない場合 → 空配列
+- `[ ]` 🟢 実装: `check_output_conflicts` ロジック（ファイル名リストをスキャンして交差を返す）
+
+#### サイクル 3-3: バッチログファイル名生成
+- `[ ]` 🔴 テスト: タイムスタンプ付きログファイル名が `ezmm-YYYYMMDD-HHMMSS.log` 形式に一致する
+- `[ ]` 🟢 実装: ログファイル名生成
+
+#### サイクル 3-4: SleepGuard（RAII）
+- `[ ]` 🔴 テスト: `SleepGuard` の Drop が呼ばれることをモックで確認（実際の caffeinate 呼び出しはテスト対象外）
+- `[ ]` 🟢 実装: `SleepGuard` struct + `Drop` impl（macOS / Windows `cfg` 分岐）
+
+#### サイクル 3-5: バッチ実行ループ（手動テスト）
+- `[ ]` 🟢 実装: エントリ直列実行ループ + FFmpeg サブプロセス起動 + `-progress pipe:1` 進捗パース
+- `[ ]` 🟢 実装: `cancel_requested` フラグ確認 + `ffmpeg_child.kill()`
+- `[ ]` 🟢 実装: Tauri イベント emit（`batch:progress` / `batch:entry_done` / `batch:entry_error` / `batch:done` / `batch:cancelled`）
+- `[ ]` 🟢 実装: バッチログ書き込み
+- 手動テスト: `examples/minimal.yaml` で実際のレンダリング確認
+
+---
+
+## Step 4: `commands` / `state` / `settings`（Rust）
+
+> 依存: Step 3（batch）完了後  
+> 参照: [05_ipc.md](design/05_ipc.md), [06_state.md](design/06_state.md), [10_infra.md](design/10_infra.md)
+
+#### サイクル 4-1: AppSettings デフォルト値
+- `[ ]` 🔴 テスト: `AppSettings::default()` が仕様の初期値（`default_crf: 23` / `default_preset: "medium"` 等）を返す
+- `[ ]` 🟢 実装: `AppSettings` / `WindowSettings` struct + `Default` impl
+
+#### サイクル 4-2: settings.json シリアライズ round-trip
+- `[ ]` 🔴 テスト: `AppSettings` を JSON 化してパースすると元と一致する / `version: 2` の JSON → `Default` を返す（バージョン不一致時のフォールバック）
+- `[ ]` 🟢 実装: `settings_from_str()` / `settings_to_string()` 純粋関数（I/O なし・テスト可能）
+
+#### サイクル 4-3: Tauri 配線（テストなし）
+- `[ ]` 🟢 実装: `state.rs` – `AppState` struct
+- `[ ]` 🟢 実装: `settings.rs` – `load_settings` / `save_settings` / `save_settings_sync`（ファイル I/O 込み）
+- `[ ]` 🟢 実装: `commands/` – 全 11 IPC コマンド
+- `[ ]` 🟢 実装: `main.rs` – Tauri builder / `.setup()` / `on_window_event`
+- `[ ]` 🟢 実装: `capabilities/default.json` – 必要権限一覧
+- 手動テスト: `pnpm tauri dev` で起動・ファイル開閉・バッチ実行の一通りの動作確認
+
+---
+
+## Step 5: TypeScript 型定義 + Zustand ストア
+
+> 依存: なし（Step 1〜4 と並行して進められる）  
+> 参照: [01_project_schema.md](design/01_project_schema.md), [09_store.md](design/09_store.md), [05_ipc.md](design/05_ipc.md)
+
+#### サイクル 5-1: Project 型定義
+- `[ ]` 🔴 テスト (Vitest): `isProject(unknown)` 型ガード関数が正しい/不正なオブジェクトを判別する
+- `[ ]` 🟢 実装: `src/types/project.ts`（`Project` / `Scene` / `SceneObject` / `Entry` / `VariableValue` 等全型）
+
+#### サイクル 5-2: ProjectStore — loadProject
+- `[ ]` 🔴 テスト: `loadProject(project, "/path")` 後に `state.project` / `state.filePath` / `state.dirty=false` が正しくセットされる
+- `[ ]` 🟢 実装: `projectStore.ts` – `loadProject` アクション
+
+#### サイクル 5-3: ProjectStore — updateProject
+- `[ ]` 🔴 テスト: `updateProject(fn)` 後に `state.dirty === true` になる / 渡した updater が project に適用される
+- `[ ]` 🟢 実装: `updateProject` アクション
+
+#### サイクル 5-4: BatchStore — 状態遷移
+- `[ ]` 🔴 テスト: `idle` → `startBatch()` → `running` → `cancelBatch()` → `cancelling` → `onCancelled()` → `idle` の遷移が正しい
+- `[ ]` 🟢 実装: `batchStore.ts` – status 状態遷移ロジック
+
+#### サイクル 5-5: BatchStore — 進捗更新
+- `[ ]` 🔴 テスト: `onProgress(payload)` 後に `currentEntryIndex` / `currentEntryName` / `currentEntryProgress` が更新される
+- `[ ]` 🟢 実装: `onProgress` / `onEntryDone` / `onEntryError` / `onDone` ハンドラ
+
+#### サイクル 5-6: SettingsStore
+- `[ ]` 🔴 テスト: `setSettings(s)` 後に `state.settings` が更新される
+- `[ ]` 🟢 実装: `settingsStore.ts`
+
+---
+
+## Step 6: Canvas プレビューエンジン（TypeScript）
+
+> 依存: Step 5（store）完了後  
+> 参照: [07_preview.md](design/07_preview.md)
+
+#### サイクル 6-1: シーン累積時間計算
+- `[ ]` 🔴 テスト: `[3s, 5s, 2s]` の3シーン → `totalDuration = 10.0` / シーン長ゼロ混在ケースも確認
+- `[ ]` 🟢 実装: `calculateTotalDuration(scenes, entry)` 純粋関数
+
+#### サイクル 6-2: 現在シーン・相対時間の算出
+- `[ ]` 🔴 テスト: `currentTime=5.5`, シーン1=3s / シーン2=5s → シーン2のインデックス、relative=2.5s / 境界値（ちょうど3.0s）も確認
+- `[ ]` 🟢 実装: `getCurrentScene(currentTime, scenes, entry)` 純粋関数
+
+#### サイクル 6-3: オブジェクト表示判定
+- `[ ]` 🔴 テスト: `start=2.0, duration=3.0` → `t=1.9: false`, `t=2.0: true`, `t=4.9: true`, `t=5.0: false` / `duration=0.0`（シーン終端）のケースも確認
+- `[ ]` 🟢 実装: `isObjectVisible(obj, relativeTime, sceneLen)` 純粋関数
+
+#### サイクル 6-4: font_size pt → px 変換
+- `[ ]` 🔴 テスト: `48pt → 64px` / `24pt → 32px` / `1pt → 1px`（round での端数処理）
+- `[ ]` 🟢 実装: `ptToPx(pt: number): number` 純粋関数
+
+#### サイクル 6-5: Canvas 描画ループ（手動テスト）
+- `[ ]` 🟢 実装: `requestAnimationFrame` ループ（30fps 上限）
+- `[ ]` 🟢 実装: `<video>` + `requestVideoFrameCallback` + `drawImage`
+- `[ ]` 🟢 実装: `convertFileSrc` による asset URL 生成
+- `[ ]` 🟢 実装: Web Audio API 音声再生（GainNode / フェード / aloop 相当）
+- `[ ]` 🟢 実装: シーク・エントリ切り替え処理
+- `[ ]` 🟢 実装: AudioContext autoplay ポリシー対応（resume ボタン）
+- 手動テスト: `examples/standard.yaml` でプレビュー再生・シーク・エントリ切り替えを確認
+
+---
+
+## Step 7: UI コンポーネント（React）
+
+> 依存: Step 5（store）+ Step 6（preview）完了後  
+> 参照: [08_gui.md](design/08_gui.md)
+
+> ※ UI コンポーネントは DOM 依存が強く TDD が困難なため、機能単位で実装→手動テストで進める。
+
+#### 機能 7-1: ツールバー
+- `[ ]` 🟢 実装: 新規 / 開く / 保存 / 名前を付けて保存ボタン
+- `[ ]` 🟢 実装: 出力先フォルダ入力欄（未設定時の赤枠ハイライト）
+- `[ ]` 🟢 実装: バッチ実行 / キャンセルボタン（バッチ中は編集 UI を無効化）
+- 手動テスト: ファイル開閉・保存が正常に動作する
+
+#### 機能 7-2: プレビューパネル
+- `[ ]` 🟢 実装: Canvas 埋め込み（Step 6 と接続）
+- `[ ]` 🟢 実装: 再生 / 一時停止 / 停止ボタン・シークバー
+- `[ ]` 🟢 実装: 時刻表示（`MM:SS / MM:SS`）
+- 手動テスト: 再生・シーク・エントリ切り替えが正常に動作する
+
+#### 機能 7-3: プロパティパネル
+- `[ ]` 🟢 実装: オブジェクト属性編集フォーム（video / image / text / audio 種別ごと）
+- `[ ]` 🟢 実装: 可変値編集フォーム（エントリ選択中に表示）
+- `[ ]` 🟢 実装: 出力設定フォーム（codec / format / crf / preset）
+- 手動テスト: 各フォームの入力が ProjectStore に反映される
+
+#### 機能 7-4: タイムライン
+- `[ ]` 🟢 実装: シーン一覧（追加 / 削除 / 並び替え）
+- `[ ]` 🟢 実装: オブジェクト一覧（追加 / 削除 / Z 順変更）
+- `[ ]` 🟢 実装: `variable: true` の視覚的表示（★ マーク等）
+- 手動テスト: シーン・オブジェクトの操作が正常に動作する
+
+#### 機能 7-5: エントリ一覧
+- `[ ]` 🟢 実装: エントリカード（チェックボックス / 選択 / 複製 / 削除）
+- `[ ]` 🟢 実装: ドラッグ並び替え
+- 手動テスト: エントリ操作とプレビュー連動が正常に動作する
+
+#### 機能 7-6: バッチ進捗ダイアログ
+- `[ ]` 🟢 実装: 進捗バー（エントリ単位 + エントリ内 % ）
+- `[ ]` 🟢 実装: キャンセルボタン（確認ダイアログ付き）
+- `[ ]` 🟢 実装: 完了ダイアログ（フォルダを開く / ログを開く）
+- 手動テスト: バッチ実行・キャンセル・完了の一連の UX を確認
+
+#### 機能 7-7: その他 UI
+- `[ ]` 🟢 実装: キーボードショートカット（Cmd+N/O/S/Shift+S / Space / Escape / Delete / Cmd+D / 矢印）
+- `[ ]` 🟢 実装: 起動時モーダル（Recent Files 一覧）
+- `[ ]` 🟢 実装: About ダイアログ
+- `[ ]` 🟢 実装: 未保存変更の確認ダイアログ（新規・開く・ウィンドウ閉じる時）
+- 手動テスト: 各 UI が仕様通りに動作する
 
 ---
 
@@ -125,7 +286,8 @@
 |------|------|
 | 2026-04-19 | 設計書を `docs/design/` に分割完了。アーキテクチャ方針: Rust は `project → renderer → batch → commands` の単方向依存で実装を直列化 |
 | 2026-04-19 | `design.md` は目次として残し、各トピックは `design/01〜10` に格納 |
-| 2026-04-19 | 実装はTDDで進める方針を決定。各ステップ完了条件は「テストがすべてgreen」 |
+| 2026-04-19 | 実装は TDD で進める方針を決定。各サイクル完了条件は「テストが green」 |
+| 2026-04-19 | tasks.md を TDD サイクル単位に再構成。UI（Step 7）は DOM 依存のため手動テスト主体とする |
 
 ---
 
