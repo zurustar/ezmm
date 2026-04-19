@@ -7,7 +7,7 @@
 
 ## 現在の状態
 
-**フェーズ**: Step 2（`renderer` モジュール）完了 → Step 3（`batch`）着手待ち
+**フェーズ**: Step 3（`batch` モジュール）完了 → Step 4（`commands` / `state` / `settings`）着手
 
 ### 開発方針: TDD
 
@@ -116,37 +116,34 @@ TS:   types/store → preview → components  （Rust と並行可）
 
 ---
 
-## Step 3: `batch` モジュール（Rust）
+## Step 3: `batch` モジュール（Rust） ✅
 
 > 依存: Step 2（renderer）完了後  
 > 参照: [04_batch.md](design/04_batch.md)
 
-#### サイクル 3-1: 出力ファイルパス生成
-- `[ ]` 🔴 テスト: `output_folder="/out"` + entry name `"tanaka"` + format `"mp4"` → `"/out/tanaka.mp4"`
-- `[ ]` 🟢 実装: 出力ファイルパス構築ロジック
+#### サイクル 3-1: 出力ファイルパス生成 ✅
+- `[x]` 🔴 テスト: エントリ名・フォルダ・フォーマットからのパス結合（`batch/output.rs`）
+- `[x]` 🟢 実装: `build_output_path()`
 
-#### サイクル 3-2: 出力ファイル衝突チェック
-- `[ ]` 🔴 テスト: `output_folder` に `tanaka.mp4` が存在する場合 → `check_output_conflicts` が `["tanaka.mp4"]` を返す / 存在しない場合 → 空配列
-- `[ ]` 🟢 実装: `check_output_conflicts` ロジック（ファイル名リストをスキャンして交差を返す）
+#### サイクル 3-2: 出力ファイル衝突チェック ✅
+- `[x]` 🔴 テスト: `output_folder` 内に既存ファイルがある場合の検知（`batch/output.rs`）
+- `[x]` 🟢 実装: `check_output_conflicts()`
 
-#### サイクル 3-3: バッチログファイル名生成
-- `[ ]` 🔴 テスト: タイムスタンプ付きログファイル名が `ezmm-YYYYMMDD-HHMMSS.log` 形式に一致する
-- `[ ]` 🟢 実装: ログファイル名生成
+#### サイクル 3-3: バッチログファイル名生成 ✅
+- `[x]` 🔴 テスト: タイムスタンプからのログファイル名生成（`ezmm-YYYYMMDD-HHMMSS.log`）
+- `[x]` 🟢 実装: `log_filename()`（`batch/log.rs`）
 
-#### サイクル 3-4: SleepGuard（RAII）
-- `[ ]` 🔴 テスト: `SleepGuard` の Drop が呼ばれることをモックで確認（実際の caffeinate 呼び出しはテスト対象外）
-- `[ ]` 🟢 実装: `SleepGuard` struct + `Drop` impl（macOS / Windows `cfg` 分岐）
+#### サイクル 3-4: SleepGuard (RAII) ✅
+- `[x]` 🔴 テスト: macOS `caffeinate` / Windows `SetThreadExecutionState` のガード生成・破棄
+- `[x]` 🟢 実装: `SleepGuard` 構造体（`batch/sleep_guard.rs`）
 
-#### サイクル 3-5: バッチ実行ループ（手動テスト）
-- `[ ]` 🟢 実装: エントリ直列実行ループ + FFmpeg サブプロセス起動 + `-progress pipe:1` 進捗パース
-- `[ ]` 🟢 実装: `cancel_requested` フラグ確認 + `ffmpeg_child.kill()`
-- `[ ]` 🟢 実装: Tauri イベント emit（`batch:progress` / `batch:entry_done` / `batch:entry_error` / `batch:done` / `batch:cancelled`）
-- `[ ]` 🟢 実装: バッチログ書き込み
-- 手動テスト: `examples/minimal.yaml` で実際のレンダリング確認
+#### サイクル 3-5: バッチ実行ループと FFmpeg 進捗パース ✅
+- `[x]` 🔴 テスト: バッチ実行中のイベント通知とキャンセル処理のロジック検証
+- `[x]` 🟢 実装: `run_batch()` 実行ループ内での ffprobe 実行、FFmpeg サブプロセス起動、`-progress` パース、Tauri イベント通知、キャンセル・kill 処理（`batch/runner.rs`）
 
 ---
 
-## Step 4: `commands` / `state` / `settings`（Rust）
+## Step 4: `commands` / `state` / `settings`（Tauri 配線） 🟢
 
 > 依存: Step 3（batch）完了後  
 > 参照: [05_ipc.md](design/05_ipc.md), [06_state.md](design/06_state.md), [10_infra.md](design/10_infra.md)

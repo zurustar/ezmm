@@ -40,6 +40,17 @@ pub enum Format {
     Webm,
 }
 
+impl std::fmt::Display for Format {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Format::Mp4 => write!(f, "mp4"),
+            Format::Mov => write!(f, "mov"),
+            Format::Webm => write!(f, "webm"),
+        }
+    }
+}
+
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Scene {
     pub id: String,

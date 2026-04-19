@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use crate::project::{
-    AudioObject, Entry, Format, ImageObject, LoopMode, OutputSettings, Project,
+    AudioObject, Entry, ImageObject, LoopMode, OutputSettings, Project,
     Scene, SceneObject, TextObject, VariableValue, VideoObject,
 };
 use crate::renderer::escape::{escape_drawtext_value, escape_filter_value};
@@ -360,7 +360,7 @@ fn build_video_filter(
     si: usize,
     oi: usize,
     v: &VideoObject,
-    settings: &OutputSettings,
+    _settings: &OutputSettings,
     scene_len: f64,
     resolved: &ResolvedEntry<'_>,
     probes: &HashMap<String, ProbeResult>,
@@ -471,8 +471,8 @@ fn build_image_filter(
 }
 
 fn build_text_filter(
-    si: usize,
-    oi: usize,
+    _si: usize,
+    _oi: usize,
     txt: &TextObject,
     scene_len: f64,
     resolved: &ResolvedEntry<'_>,
@@ -513,8 +513,8 @@ fn build_text_filter(
 }
 
 fn build_audio_filter(
-    si: usize,
-    oi: usize,
+    _si: usize,
+    _oi: usize,
     aud: &AudioObject,
     scene_len: f64,
     settings: &OutputSettings,
@@ -599,7 +599,7 @@ fn build_amix(audio_labels: &[String], scene_len: f64, out_label: &str) -> Strin
 
 fn assemble_filter_complex(
     scene_filters: &[SceneFilter],
-    scenes: &[Scene],
+    _scenes: &[Scene],
     sample_rate: u32,
     split_frags: &[String],
 ) -> String {
