@@ -1,0 +1,27 @@
+---
+source: src/renderer/codec.rs
+expression: args
+---
+- "-pix_fmt"
+- yuv420p
+- "-c:v"
+- libx265
+- "-crf"
+- "28"
+- "-preset"
+- medium
+- "-tag:v"
+- hvc1
+- "-map"
+- "[vout]"
+- "-map"
+- "[aout]"
+- "-c:a"
+- aac
+- "-b:a"
+- 192k
+- "-ar"
+- "44100"
+- "-ac"
+- "2"
+- /out/test.mp4

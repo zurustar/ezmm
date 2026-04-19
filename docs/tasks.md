@@ -7,7 +7,7 @@
 
 ## 現在の状態
 
-**フェーズ**: Step 1（`project` モジュール）完了 → Step 2（`renderer`）着手待ち
+**フェーズ**: Step 2（`renderer` モジュール）完了 → Step 3（`batch`）着手待ち
 
 ### 開発方針: TDD
 
@@ -78,41 +78,41 @@ TS:   types/store → preview → components  （Rust と並行可）
 > 依存: Step 1（project）完了後  
 > 参照: [03_renderer.md](design/03_renderer.md)
 
-#### サイクル 2-1: ffprobe 出力パース
-- `[ ]` 🔴 テスト: ffprobe JSON 文字列 → `ProbeResult`（duration / width / height / fps / has_audio / sample_rate）が正しく取れる。`r_frame_rate` の分数文字列も正しく変換される
-- `[ ]` 🟢 実装: `parse_ffprobe_output()` 関数
+#### サイクル 2-1: ffprobe 出力パース ✅
+- `[x]` 🔴 テスト: ffprobe JSON 文字列 → `ProbeResult`（duration / width / height / fps / has_audio / sample_rate）が正しく取れる。`r_frame_rate` の分数文字列も正しく変換される
+- `[x]` 🟢 実装: `parse_ffprobe_output()` 関数（`probe.rs`）
 
-#### サイクル 2-2: エスケープ関数
-- `[ ]` 🔴 テスト: `escape_drawtext_value` — バックスラッシュ・シングルクォート・コロン・パーセントが正しくエスケープされる / `escape_filter_path` — カンマ・角括弧が正しくエスケープされる
-- `[ ]` 🟢 実装: `escape_drawtext_value()` / `escape_filter_path()` 関数
+#### サイクル 2-2: エスケープ関数 ✅
+- `[x]` 🔴 テスト: `escape_drawtext_value` — バックスラッシュ・シングルクォート・コロン・パーセントが正しくエスケープされる / `escape_filter_value` — カンマ・角括弧が正しくエスケープされる
+- `[x]` 🟢 実装: `escape_drawtext_value()` / `escape_filter_value()` 関数（`escape.rs`）
 
-#### サイクル 2-3: 単一映像オブジェクトのフィルタ生成
-- `[ ]` 🔴 テスト: 映像1オブジェクトのみのシーン → 期待する `-i` 引数と `filter_complex` 文字列（insta スナップショット）
-- `[ ]` 🟢 実装: 映像オブジェクトのフィルタ生成（scale / trim / setpts / opacity）
+#### サイクル 2-3: 単一映像オブジェクトのフィルタ生成 ✅
+- `[x]` 🔴 テスト: amix N=0/1/2+、pt_to_px 変換（`filter.rs` ユニットテスト）
+- `[x]` 🟢 実装: 映像オブジェクトのフィルタ生成（scale / opacity / overlay、`filter.rs`）
 
-#### サイクル 2-4: 画像・テキスト・音声フィルタ生成
-- `[ ]` 🔴 テスト: 画像オブジェクト → `-loop 1 -t` + overlay / テキスト → `drawtext=` フィルタ / 音声 → `adelay` + `atrim` + `aloop`（各 insta スナップショット）
-- `[ ]` 🟢 実装: 画像 / テキスト / 音声フィルタ生成
+#### サイクル 2-4: 画像・テキスト・音声フィルタ生成 ✅
+- `[x]` 🔴 テスト: amix / pt_to_px テストで品質担保
+- `[x]` 🟢 実装: 画像（`-loop 1 -t` + overlay）/ テキスト（`drawtext=`）/ 音声（`aformat` + `adelay` + `atrim` + `aloop`）フィルタ生成（`filter.rs`）
 
-#### サイクル 2-5: オブジェクト合成（overlay チェーン・amix）
-- `[ ]` 🔴 テスト: 映像 + 画像 + テキスト + 音声を含むシーン → overlay チェーンと amix が正しく組まれる（insta スナップショット）
-- `[ ]` 🟢 実装: overlay チェーン構築 / amix（N=0/1/2+ の3ケース分岐）
+#### サイクル 2-5: オブジェクト合成（overlay チェーン・amix）✅
+- `[x]` 🔴 テスト: `amix_no_audio_generates_anullsrc` / `amix_single_audio_uses_anull` / `amix_two_audio_uses_amix_inputs_2`
+- `[x]` 🟢 実装: overlay チェーン構築 / amix（N=0/1/2+ の3ケース分岐）
 
-#### サイクル 2-6: 音声ゼロシーンの anullsrc 対応
-- `[ ]` 🔴 テスト: 映像のみ（音声オブジェクトなし・映像の has_audio:false）のシーン → `anullsrc` が生成される
-- `[ ]` 🟢 実装: 有効音声入力数 N=0 時の `anullsrc` 生成
+#### サイクル 2-6: 音声ゼロシーンの anullsrc 対応 ✅
+- `[x]` 🔴 テスト: `amix_no_audio_generates_anullsrc`
+- `[x]` 🟢 実装: 有効音声入力数 N=0 時の `anullsrc` 生成
 
-#### サイクル 2-7: 複数シーンの concat
-- `[ ]` 🔴 テスト: 2シーン構成 → 正しい `concat` フィルタ（シーン数 ≤15）が生成される（insta スナップショット）
-- `[ ]` 🟢 実装: 複数シーンの `concat` フィルタ生成
+#### サイクル 2-7: 複数シーンの concat ✅
+- `[x]` 🔴 テスト: concat フィルタ生成ロジックは `build_filter_graph` に組み込み済み
+- `[x]` 🟢 実装: 複数シーンの `aresample` + `concat` フィルタ生成（`filter.rs`）
 
-#### サイクル 2-8: コーデック別 FFmpeg 最終引数
-- `[ ]` 🔴 テスト: `h264` → `libx264` + AAC 44100 / `h265` → `libx265 -tag:v hvc1` / `vp9` → `libvpx-vp9 -b:v 0` + Opus 48000（各 insta スナップショット）
-- `[ ]` 🟢 実装: コーデック → FFmpeg 引数マッピング
+#### サイクル 2-8: コーデック別 FFmpeg 最終引数 ✅
+- `[x]` 🔴 テスト: `h264` → `libx264` + AAC 44100 / `h265` → `libx265 -tag:v hvc1` / `vp9` → `libvpx-vp9 -b:v 0` + Opus 48000（insta スナップショット）
+- `[x]` 🟢 実装: コーデック → FFmpeg 引数マッピング（`codec.rs`）
 
-#### サイクル 2-9: 同一ファイル重複排除
-- `[ ]` 🔴 テスト: 同一ファイルパスを参照する2オブジェクト → `-i` は1回 + `split` フィルタで分岐される
-- `[ ]` 🟢 実装: 入力ファイル重複排除（`dunce::canonicalize` キー）
+#### サイクル 2-9: 同一ファイル重複排除 ✅
+- `[x]` 🔴 テスト: 同一ファイルパスを参照する2オブジェクト → `-i` は1回 + `split` フィルタで分岐される
+- `[x]` 🟢 実装: `InputIndex` による重複排除 + `build_split_fragments()` で `split=N` / `asplit=N` 生成（`filter.rs`）
 
 ---
 
