@@ -148,21 +148,38 @@ TS:   types/store → preview → components  （Rust と並行可）
 > 依存: Step 3（batch）完了後  
 > 参照: [05_ipc.md](design/05_ipc.md), [06_state.md](design/06_state.md), [10_infra.md](design/10_infra.md)
 
-#### サイクル 4-1: AppSettings デフォルト値
-- `[ ]` 🔴 テスト: `AppSettings::default()` が仕様の初期値（`default_crf: 23` / `default_preset: "medium"` 等）を返す
-- `[ ]` 🟢 実装: `AppSettings` / `WindowSettings` struct + `Default` impl
+#### サイクル 4-1: AppSettings デフォルト値 ✅
+- `[x]` 🔴 テスト: `AppSettings::default()` が仕様の初期値（`default_crf: 23` / `default_preset: "medium"` 等）を返す
+- `[x]` 🟢 実装: `AppSettings` / `WindowSettings` struct + `Default` impl
 
-#### サイクル 4-2: settings.json シリアライズ round-trip
-- `[ ]` 🔴 テスト: `AppSettings` を JSON 化してパースすると元と一致する / `version: 2` の JSON → `Default` を返す（バージョン不一致時のフォールバック）
-- `[ ]` 🟢 実装: `settings_from_str()` / `settings_to_string()` 純粋関数（I/O なし・テスト可能）
+#### サイクル 4-2: settings.json シリアライズ round-trip ✅
+- `[x]` 🔴 テスト: `AppSettings` を JSON 化してパースすると元と一致する / `version: 2` の JSON → `Default` を返す（バージョン不一致時のフォールバック）
+- `[x]` 🟢 実装: `settings_from_str()` / `settings_to_string()` 純粋関数（I/O なし・テスト可能）
 
-#### サイクル 4-3: Tauri 配線（テストなし）
-- `[ ]` 🟢 実装: `state.rs` – `AppState` struct
-- `[ ]` 🟢 実装: `settings.rs` – `load_settings` / `save_settings` / `save_settings_sync`（ファイル I/O 込み）
-- `[ ]` 🟢 実装: `commands/` – 全 11 IPC コマンド
-- `[ ]` 🟢 実装: `main.rs` – Tauri builder / `.setup()` / `on_window_event`
-- `[ ]` 🟢 実装: `capabilities/default.json` – 必要権限一覧
-- 手動テスト: `pnpm tauri dev` で起動・ファイル開閉・バッチ実行の一通りの動作確認
+#### サイクル 4-3: 設定ファイルのアトミック I/O ✅
+- `[x]` 🔴 テスト: `save_settings_sync` がアトミックな一時ファイル経由の保存（`.tmp` → `rename`）を正しく行うこと
+- `[x]` 🟢 実装: `settings.rs` へのファイル I/O 処理と `state.rs` (`AppState`) の定義追加
+
+#### サイクル 4-4: Project コマンド群（アトミック保存） ✅
+- `[x]` 🔴 テスト: プロジェクト保存におけるアトミック書き込み（`.bak`作成、`.tmp`経由）とパスの正規化（`dunce`使用）の挙動検証
+- `[x]` 🟢 実装: `commands/project.rs`（`open_project`, `save_project`, `validate_project`）
+
+#### サイクル 4-5: Infra コマンド群 ✅
+- `[x]` 🔴 テスト: `ffmpeg -version` 出力から「version N.N.N」を抽出する正規表現関数の単体テスト
+- `[x]` 🟢 実装: `commands/infra.rs`（`get_ffmpeg_version`, `probe_file`, `get_font_paths`）
+
+#### サイクル 4-6: Settings コマンド群 ✅
+- `[x]` 🔴 テスト: 内部 I/O の呼び出しと AppState キャッシュの更新処理の結合
+- `[x]` 🟢 実装: `commands/settings.rs`（`load_settings`, `save_settings`）
+
+#### サイクル 4-7: Batch コマンド群 ✅
+- `[x]` 🔴 テスト: バッチ実行フラグの二重起動防止制御など、Mutex の状態変更ロジック
+- `[x]` 🟢 実装: `commands/batch.rs`（`start_batch`, `cancel_batch`, `check_output_conflicts`）
+
+#### サイクル 4-8: Tauri メイン配線と権限 (手動テスト) ✅
+- `[x]` 🟢 実装: `main.rs` (tauri::Builder, setup 時の各パス初期化, on_window_event の Close 制御)
+- `[x]` 🟢 実装: `capabilities/default.json` へのコマンド露出設定
+- `[x]` 手動テスト: `pnpm tauri dev` で起動・ファイル開閉・バッチ実行の一通りの動作確認
 
 ---
 

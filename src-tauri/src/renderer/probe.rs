@@ -1,9 +1,9 @@
 // probe.rs — ffprobe JSON 出力のパース
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// ffprobe の出力から取り出したメタデータ
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ProbeResult {
     /// ファイル長（秒）
     pub duration: f64,

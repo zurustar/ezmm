@@ -1,7 +1,9 @@
 use crate::project::{Codec, Entry, Format, Project, SceneObject};
 
+use serde::Serialize;
+
 /// バリデーション結果
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ValidationResult {
     pub errors: Vec<ValidationIssue>,
     pub warnings: Vec<ValidationIssue>,
@@ -41,7 +43,7 @@ impl ValidationResult {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ValidationIssue {
     pub severity: Severity,
     pub code: String,
@@ -51,7 +53,7 @@ pub struct ValidationIssue {
     pub entry_name: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum Severity {
     Error,
     Warning,

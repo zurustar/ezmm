@@ -18,6 +18,13 @@ serde_json = "1"
 serde_yml = "0.0.12"
 indexmap = { version = "2", features = ["serde"] }
 thiserror = "1"
+tracing = "0.1.44"
+tracing-appender = "0.2.5"
+tracing-subscriber = "0.3.23"
+dunce = "1.0.5"
+tauri = "2.0.0-rc.0"
+regex = "1"
+chrono = "0.4.44"
 
 [dev-dependencies]
 insta = { version = "1", features = ["yaml"] }
@@ -30,3 +37,6 @@ opt-level = 0
 [profile.release]
 opt-level = 3
 lto = true
+
+[build-dependencies]
+tauri-build = "2.0.0-rc.0"

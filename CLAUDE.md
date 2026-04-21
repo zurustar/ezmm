@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-社内向けの動画バッチ編集ツール。役員メッセージ動画など、複数の動画に同じ編集設定を適用して一括生成する。詳細は [docs/requirements.md](docs/requirements.md) を参照。
+社内向けの動画編集ツール。詳細は [docs/requirements.md](docs/requirements.md) を参照。
 
 **重要**: 要件の変更・追加が生じた場合は、必ず `docs/requirements.md` を更新してから実装に入ること。技術スタック・設計判断は [docs/design.md](docs/design.md) を参照。
 
