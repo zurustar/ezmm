@@ -185,6 +185,11 @@ TS:   types/store → preview → components  （Rust と並行可）
 
 ## Step 5: TypeScript 型定義 + Zustand ストア
 
+> **【次回再開時のメモ】**
+> Step 4（バックエンド全般）は完了・コミット済みです。
+> Step 5 からフロントエンド環境（SvelteKit）の構築に入りますが、状態管理において「設計書通りの Zustand を採用するか」それとも「Svelte 5 標準の `$state` (Runes) に切り替えてシンプルにするか」の決定待ち状態となっています。
+> 開発再開時は、方針を決定の上 `pnpm create svelte@latest .` などのフロントエンド基盤構築から開始してください。
+
 > 依存: なし（Step 1〜4 と並行して進められる）  
 > 参照: [01_project_schema.md](design/01_project_schema.md), [09_store.md](design/09_store.md), [05_ipc.md](design/05_ipc.md)
 
