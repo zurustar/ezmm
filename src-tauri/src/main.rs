@@ -7,7 +7,7 @@ use tracing_appender::non_blocking;
 
 use ezmm_lib::state::AppState;
 use ezmm_lib::settings;
-use ezmm_lib::commands::{batch, infra, project, settings as settings_cmd};
+use ezmm_lib::commands::{batch, dialog, infra, project, settings as settings_cmd};
 
 fn main() {
     tauri::Builder::default()
@@ -76,6 +76,10 @@ fn main() {
             batch::start_batch,
             batch::cancel_batch,
             batch::check_output_conflicts,
+            dialog::show_open_yaml_dialog,
+            dialog::show_save_yaml_dialog,
+            dialog::show_folder_dialog,
+            dialog::show_open_file_dialog,
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { .. } = event {

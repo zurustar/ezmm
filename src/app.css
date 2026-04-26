@@ -1,0 +1,122 @@
+/* CSS variables — auto-follows system dark/light mode */
+:root {
+	--bg-main: #ffffff;
+	--bg-panel: #f5f5f5;
+	--bg-toolbar: #f0f0f0;
+	--color-text: #1e1e1e;
+	--color-text-muted: #6e6e6e;
+	--color-primary: #0066cc;
+	--color-selection: rgba(0, 128, 255, 0.7);
+	--color-warning: #d97706;
+	--color-error: #dc2626;
+	--color-border: #e0e0e0;
+	--color-handle: #aaaaaa;
+	--radius: 4px;
+	--toolbar-height: 44px;
+	--banner-height: 36px;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg-main: #1e1e1e;
+		--bg-panel: #252526;
+		--bg-toolbar: #2d2d2d;
+		--color-text: #e0e0e0;
+		--color-text-muted: #a0a0a0;
+		--color-primary: #4da3ff;
+		--color-selection: rgba(77, 163, 255, 0.7);
+		--color-warning: #fbbf24;
+		--color-error: #ef4444;
+		--color-border: #3e3e3e;
+		--color-handle: #666666;
+	}
+}
+
+*, *::before, *::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+html, body {
+	height: 100%;
+	overflow: hidden;
+	font-family: system-ui, -apple-system, sans-serif;
+	font-size: 13px;
+	background: var(--bg-main);
+	color: var(--color-text);
+}
+
+button {
+	cursor: pointer;
+	font: inherit;
+	background: var(--bg-panel);
+	color: var(--color-text);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	padding: 4px 10px;
+}
+
+button:hover { filter: brightness(0.95); }
+button:disabled { opacity: 0.45; cursor: default; }
+
+input[type="text"],
+input[type="number"] {
+	font: inherit;
+	background: var(--bg-main);
+	color: var(--color-text);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	padding: 3px 6px;
+}
+
+select {
+	font: inherit;
+	background: var(--bg-main);
+	color: var(--color-text);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	padding: 3px 6px;
+}
+
+label { user-select: none; }
+
+.modal-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 100;
+}
+
+.modal-box {
+	background: var(--bg-main);
+	border: 1px solid var(--color-border);
+	border-radius: 8px;
+	padding: 20px;
+	min-width: 320px;
+	max-width: 90vw;
+	max-height: 80vh;
+	overflow-y: auto;
+}
+
+.modal-title {
+	font-size: 15px;
+	font-weight: 600;
+	margin-bottom: 12px;
+}
+
+.modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 16px;
+}
+
+.btn-primary {
+	background: var(--color-primary);
+	color: #fff;
+	border-color: var(--color-primary);
+}

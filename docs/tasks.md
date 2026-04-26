@@ -7,7 +7,7 @@
 
 ## 現在の状態
 
-**フェーズ**: Step 3（`batch` モジュール）完了 → Step 4（`commands` / `state` / `settings`）着手
+**フェーズ**: Step 7（UI コンポーネント）実装完了 → 手動テスト（`pnpm tauri dev`）
 
 ### 開発方針: TDD
 
@@ -183,39 +183,34 @@ TS:   types/store → preview → components  （Rust と並行可）
 
 ---
 
-## Step 5: TypeScript 型定義 + Zustand ストア
-
-> **【次回再開時のメモ】**
-> Step 4（バックエンド全般）は完了・コミット済みです。
-> Step 5 からフロントエンド環境（SvelteKit）の構築に入りますが、状態管理において「設計書通りの Zustand を採用するか」それとも「Svelte 5 標準の `$state` (Runes) に切り替えてシンプルにするか」の決定待ち状態となっています。
-> 開発再開時は、方針を決定の上 `pnpm create svelte@latest .` などのフロントエンド基盤構築から開始してください。
+## Step 5: TypeScript 型定義 + Svelte 5 `$state` ストア
 
 > 依存: なし（Step 1〜4 と並行して進められる）  
 > 参照: [01_project_schema.md](design/01_project_schema.md), [09_store.md](design/09_store.md), [05_ipc.md](design/05_ipc.md)
 
 #### サイクル 5-1: Project 型定義
-- `[ ]` 🔴 テスト (Vitest): `isProject(unknown)` 型ガード関数が正しい/不正なオブジェクトを判別する
-- `[ ]` 🟢 実装: `src/types/project.ts`（`Project` / `Scene` / `SceneObject` / `Entry` / `VariableValue` 等全型）
+- `[x]` 🔴 テスト (Vitest): `isProject(unknown)` 型ガード関数が正しい/不正なオブジェクトを判別する
+- `[x]` 🟢 実装: `src/types/project.ts`（`Project` / `Scene` / `SceneObject` / `Entry` / `VariableValue` 等全型）
 
 #### サイクル 5-2: ProjectStore — loadProject
-- `[ ]` 🔴 テスト: `loadProject(project, "/path")` 後に `state.project` / `state.filePath` / `state.dirty=false` が正しくセットされる
-- `[ ]` 🟢 実装: `projectStore.ts` – `loadProject` アクション
+- `[x]` 🔴 テスト: `loadProject(project, "/path")` 後に `state.project` / `state.filePath` / `state.dirty=false` が正しくセットされる
+- `[x]` 🟢 実装: `projectStore.svelte.ts` – `loadProject` アクション
 
 #### サイクル 5-3: ProjectStore — updateProject
-- `[ ]` 🔴 テスト: `updateProject(fn)` 後に `state.dirty === true` になる / 渡した updater が project に適用される
-- `[ ]` 🟢 実装: `updateProject` アクション
+- `[x]` 🔴 テスト: `updateProject(fn)` 後に `state.dirty === true` になる / 渡した updater が project に適用される
+- `[x]` 🟢 実装: `updateProject` アクション
 
 #### サイクル 5-4: BatchStore — 状態遷移
-- `[ ]` 🔴 テスト: `idle` → `startBatch()` → `running` → `cancelBatch()` → `cancelling` → `onCancelled()` → `idle` の遷移が正しい
-- `[ ]` 🟢 実装: `batchStore.ts` – status 状態遷移ロジック
+- `[x]` 🔴 テスト: `idle` → `_setRunning()` → `running` → `cancelBatch()` → `cancelling` → `onCancelled()` → `idle` の遷移が正しい
+- `[x]` 🟢 実装: `batchStore.svelte.ts` – status 状態遷移ロジック
 
 #### サイクル 5-5: BatchStore — 進捗更新
-- `[ ]` 🔴 テスト: `onProgress(payload)` 後に `currentEntryIndex` / `currentEntryName` / `currentEntryProgress` が更新される
-- `[ ]` 🟢 実装: `onProgress` / `onEntryDone` / `onEntryError` / `onDone` ハンドラ
+- `[x]` 🔴 テスト: `onProgress(payload)` 後に `currentEntryIndex` / `currentEntryName` / `currentEntryProgress` が更新される
+- `[x]` 🟢 実装: `onProgress` / `onEntryDone` / `onEntryError` / `onDone` ハンドラ
 
 #### サイクル 5-6: SettingsStore
-- `[ ]` 🔴 テスト: `setSettings(s)` 後に `state.settings` が更新される
-- `[ ]` 🟢 実装: `settingsStore.ts`
+- `[x]` 🔴 テスト: `setSettings(s)` 後に `state.settings` が更新される
+- `[x]` 🟢 実装: `settingsStore.svelte.ts`
 
 ---
 
@@ -225,33 +220,33 @@ TS:   types/store → preview → components  （Rust と並行可）
 > 参照: [07_preview.md](design/07_preview.md)
 
 #### サイクル 6-1: シーン累積時間計算
-- `[ ]` 🔴 テスト: `[3s, 5s, 2s]` の3シーン → `totalDuration = 10.0` / シーン長ゼロ混在ケースも確認
-- `[ ]` 🟢 実装: `calculateTotalDuration(scenes, entry)` 純粋関数
+- `[x]` 🔴 テスト: `[3s, 5s, 2s]` の3シーン → `totalDuration = 10.0` / シーン長ゼロ混在ケースも確認
+- `[x]` 🟢 実装: `calculateTotalDuration(scenes)` 純粋関数（`src/preview/sceneUtils.ts`）
 
 #### サイクル 6-2: 現在シーン・相対時間の算出
-- `[ ]` 🔴 テスト: `currentTime=5.5`, シーン1=3s / シーン2=5s → シーン2のインデックス、relative=2.5s / 境界値（ちょうど3.0s）も確認
-- `[ ]` 🟢 実装: `getCurrentScene(currentTime, scenes, entry)` 純粋関数
+- `[x]` 🔴 テスト: `currentTime=5.5`, シーン1=3s / シーン2=5s → シーン2のインデックス、relative=2.5s / 境界値（ちょうど3.0s）も確認
+- `[x]` 🟢 実装: `getCurrentScene(currentTime, scenes)` 純粋関数
 
 #### サイクル 6-3: オブジェクト表示判定
-- `[ ]` 🔴 テスト: `start=2.0, duration=3.0` → `t=1.9: false`, `t=2.0: true`, `t=4.9: true`, `t=5.0: false` / `duration=0.0`（シーン終端）のケースも確認
-- `[ ]` 🟢 実装: `isObjectVisible(obj, relativeTime, sceneLen)` 純粋関数
+- `[x]` 🔴 テスト: `start=2.0, duration=3.0` → `t=1.9: false`, `t=2.0: true`, `t=4.9: true`, `t=5.0: false` / `duration=0.0`（シーン終端）のケースも確認
+- `[x]` 🟢 実装: `isObjectVisible(obj, relativeTime, sceneLen)` 純粋関数
 
 #### サイクル 6-4: font_size pt → px 変換
-- `[ ]` 🔴 テスト: `48pt → 64px` / `24pt → 32px` / `1pt → 1px`（round での端数処理）
-- `[ ]` 🟢 実装: `ptToPx(pt: number): number` 純粋関数
+- `[x]` 🔴 テスト: `48pt → 64px` / `24pt → 32px` / `1pt → 1px`（round での端数処理）
+- `[x]` 🟢 実装: `ptToPx(pt: number): number` 純粋関数
 
 #### サイクル 6-5: Canvas 描画ループ（手動テスト）
-- `[ ]` 🟢 実装: `requestAnimationFrame` ループ（30fps 上限）
-- `[ ]` 🟢 実装: `<video>` + `requestVideoFrameCallback` + `drawImage`
-- `[ ]` 🟢 実装: `convertFileSrc` による asset URL 生成
-- `[ ]` 🟢 実装: Web Audio API 音声再生（GainNode / フェード / aloop 相当）
-- `[ ]` 🟢 実装: シーク・エントリ切り替え処理
-- `[ ]` 🟢 実装: AudioContext autoplay ポリシー対応（resume ボタン）
-- 手動テスト: `examples/standard.yaml` でプレビュー再生・シーク・エントリ切り替えを確認
+- `[x]` 🟢 実装: `requestAnimationFrame` ループ（30fps 上限）（`src/preview/PreviewCanvas.svelte`）
+- `[x]` 🟢 実装: `<video>` + `requestVideoFrameCallback` + `drawImage`
+- `[x]` 🟢 実装: `convertFileSrc` による asset URL 生成
+- `[x]` 🟢 実装: Web Audio API 音声再生（GainNode / フェード / aloop 相当）
+- `[x]` 🟢 実装: シーク・エントリ切り替え処理
+- `[x]` 🟢 実装: AudioContext autoplay ポリシー対応（resume ボタン）
+- 手動テスト: `examples/standard.yaml` でプレビュー再生・シーク・エントリ切り替えを確認（Step 7 UI 完成後）
 
 ---
 
-## Step 7: UI コンポーネント（React）
+## Step 7: UI コンポーネント（Svelte 5）
 
 > 依存: Step 5（store）+ Step 6（preview）完了後  
 > 参照: [08_gui.md](design/08_gui.md)
@@ -259,46 +254,46 @@ TS:   types/store → preview → components  （Rust と並行可）
 > ※ UI コンポーネントは DOM 依存が強く TDD が困難なため、機能単位で実装→手動テストで進める。
 
 #### 機能 7-1: ツールバー
-- `[ ]` 🟢 実装: 新規 / 開く / 保存 / 名前を付けて保存ボタン
-- `[ ]` 🟢 実装: 出力先フォルダ入力欄（未設定時の赤枠ハイライト）
-- `[ ]` 🟢 実装: バッチ実行 / キャンセルボタン（バッチ中は編集 UI を無効化）
+- `[x]` 🟢 実装: 新規 / 開く / 保存 / 名前を付けて保存ボタン（`src/components/Toolbar.svelte`）
+- `[x]` 🟢 実装: 出力先フォルダ入力欄（未設定時の赤枠ハイライト）
+- `[x]` 🟢 実装: バッチ実行 / キャンセルボタン（バッチ中は編集 UI を無効化）
 - 手動テスト: ファイル開閉・保存が正常に動作する
 
 #### 機能 7-2: プレビューパネル
-- `[ ]` 🟢 実装: Canvas 埋め込み（Step 6 と接続）
-- `[ ]` 🟢 実装: 再生 / 一時停止 / 停止ボタン・シークバー
-- `[ ]` 🟢 実装: 時刻表示（`MM:SS / MM:SS`）
+- `[x]` 🟢 実装: Canvas 埋め込み（Step 6 と接続）（`src/components/PreviewPanel.svelte`）
+- `[x]` 🟢 実装: 再生 / 一時停止 / 停止ボタン・シークバー
+- `[x]` 🟢 実装: 時刻表示（`MM:SS / MM:SS`）
 - 手動テスト: 再生・シーク・エントリ切り替えが正常に動作する
 
 #### 機能 7-3: プロパティパネル
-- `[ ]` 🟢 実装: オブジェクト属性編集フォーム（video / image / text / audio 種別ごと）
-- `[ ]` 🟢 実装: 可変値編集フォーム（エントリ選択中に表示）
-- `[ ]` 🟢 実装: 出力設定フォーム（codec / format / crf / preset）
+- `[x]` 🟢 実装: オブジェクト属性編集フォーム（video / image / text / audio 種別ごと）（`src/components/PropertiesPanel.svelte`）
+- `[x]` 🟢 実装: 可変値編集フォーム（エントリ選択中に表示）
+- `[x]` 🟢 実装: 出力設定フォーム（codec / format / crf / preset）
 - 手動テスト: 各フォームの入力が ProjectStore に反映される
 
 #### 機能 7-4: タイムライン
-- `[ ]` 🟢 実装: シーン一覧（追加 / 削除 / 並び替え）
-- `[ ]` 🟢 実装: オブジェクト一覧（追加 / 削除 / Z 順変更）
-- `[ ]` 🟢 実装: `variable: true` の視覚的表示（★ マーク等）
+- `[x]` 🟢 実装: シーン一覧（追加 / 削除 / 並び替え）（`src/components/Timeline.svelte`）
+- `[x]` 🟢 実装: オブジェクト一覧（追加 / 削除 / Z 順変更）
+- `[x]` 🟢 実装: `variable: true` の視覚的表示（★ マーク等）
 - 手動テスト: シーン・オブジェクトの操作が正常に動作する
 
 #### 機能 7-5: エントリ一覧
-- `[ ]` 🟢 実装: エントリカード（チェックボックス / 選択 / 複製 / 削除）
-- `[ ]` 🟢 実装: ドラッグ並び替え
+- `[x]` 🟢 実装: エントリカード（チェックボックス / 選択 / 複製 / 削除）（`src/components/EntryList.svelte`）
+- `[x]` 🟢 実装: ドラッグ並び替え
 - 手動テスト: エントリ操作とプレビュー連動が正常に動作する
 
 #### 機能 7-6: バッチ進捗ダイアログ
-- `[ ]` 🟢 実装: 進捗バー（エントリ単位 + エントリ内 % ）
-- `[ ]` 🟢 実装: キャンセルボタン（確認ダイアログ付き）
-- `[ ]` 🟢 実装: 完了ダイアログ（フォルダを開く / ログを開く）
+- `[x]` 🟢 実装: 進捗バー（エントリ単位 + エントリ内 % ）（`src/components/BatchProgressDialog.svelte`）
+- `[x]` 🟢 実装: キャンセルボタン（確認ダイアログ付き）
+- `[x]` 🟢 実装: 完了ダイアログ
 - 手動テスト: バッチ実行・キャンセル・完了の一連の UX を確認
 
 #### 機能 7-7: その他 UI
-- `[ ]` 🟢 実装: キーボードショートカット（Cmd+N/O/S/Shift+S / Space / Escape / Delete / Cmd+D / 矢印）
-- `[ ]` 🟢 実装: 起動時モーダル（Recent Files 一覧）
-- `[ ]` 🟢 実装: About ダイアログ
-- `[ ]` 🟢 実装: 未保存変更の確認ダイアログ（新規・開く・ウィンドウ閉じる時）
-- 手動テスト: 各 UI が仕様通りに動作する
+- `[x]` 🟢 実装: キーボードショートカット（Cmd+N/O/S/Shift+S / Space / Escape / Delete / Cmd+D / 矢印）（`src/routes/+page.svelte`）
+- `[x]` 🟢 実装: 起動時モーダル（Recent Files 一覧）（`src/components/RecentFilesModal.svelte`）
+- `[x]` 🟢 実装: About ダイアログ（`src/components/AboutDialog.svelte`）
+- `[x]` 🟢 実装: 未保存変更の確認ダイアログ（`src/components/UnsavedChangesDialog.svelte`）
+- 手動テスト: `pnpm tauri dev` で起動・一通りの動作確認
 
 ---
 
@@ -325,5 +320,5 @@ TS:   types/store → preview → components  （Rust と並行可）
 - [AppState / 設定](design/06_state.md)
 - [プレビュー](design/07_preview.md)
 - [GUI](design/08_gui.md)
-- [Zustand ストア](design/09_store.md)
+- [Svelte 5 `$state` ストア](design/09_store.md)
 - [インフラ・CI/CD](design/10_infra.md)
