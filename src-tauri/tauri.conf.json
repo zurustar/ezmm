@@ -21,6 +21,11 @@
     ],
     "resources": {
       "fonts/*": "fonts/"
+    },
+    "windows": {
+      "wix": {
+        "language": "ja-JP"
+      }
     }
   },
   "app": {
